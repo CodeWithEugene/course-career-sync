@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Upload, Sparkles, LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -29,38 +28,40 @@ const careers = [
 ];
 
 const Dashboard = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{id: string, name: string, email: string, picture?: string} | null>(null);
   const [selectedCareer, setSelectedCareer] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
-    });
+    // Check if user is authenticated
+    const userToken = localStorage.getItem('googleAuthToken');
+    const userInfoStr = localStorage.getItem('userInfo');
+    
+    if (!userToken || !userInfoStr) {
+      navigate('/auth');
+      return;
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    try {
+      const userInfo = JSON.parse(userInfoStr);
+      setUser(userInfo);
+    } catch (error) {
+      console.error('Error parsing user info:', error);
+      navigate('/auth');
+    }
   }, [navigate]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    localStorage.removeItem('googleAuthToken');
+    localStorage.removeItem('userInfo');
+    setUser(null);
     toast({
       title: "Signed out",
       description: "You've been successfully signed out.",
     });
+    navigate('/auth');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,7 +127,7 @@ const Dashboard = () => {
           className="max-w-2xl mx-auto"
         >
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">Welcome Back!</h1>
+            <h1 className="text-4xl font-bold mb-2">Welcome Back, {user.name}!</h1>
             <p className="text-muted-foreground">
               Upload your coursework to discover your skills
             </p>

@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, LogOut, ArrowLeft, Share2, Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -44,26 +43,38 @@ const mockCareerMatch = {
 };
 
 const Profile = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{id: string, name: string, email: string, picture?: string} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
-    });
+    // Check if user is authenticated
+    const userToken = localStorage.getItem('googleAuthToken');
+    const userInfoStr = localStorage.getItem('userInfo');
+    
+    if (!userToken || !userInfoStr) {
+      navigate('/auth');
+      return;
+    }
+
+    try {
+      const userInfo = JSON.parse(userInfoStr);
+      setUser(userInfo);
+    } catch (error) {
+      console.error('Error parsing user info:', error);
+      navigate('/auth');
+    }
   }, [navigate]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    localStorage.removeItem('googleAuthToken');
+    localStorage.removeItem('userInfo');
+    setUser(null);
     toast({
       title: "Signed out",
       description: "You've been successfully signed out.",
     });
+    navigate('/auth');
   };
 
   const handleShare = () => {

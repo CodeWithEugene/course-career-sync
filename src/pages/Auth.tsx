@@ -2,132 +2,77 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Sparkles } from "lucide-react";
 
+// Google OAuth configuration
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "117053563877-pdor1rav4e9kgrea7p21e31h999q7tfj.apps.googleusercontent.com";
+
+// Extend window type for Google API
+declare global {
+  interface Window {
+    google?: unknown;
+  }
+}
+
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     // Check if user is already authenticated
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/dashboard');
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, session?.user?.email);
-      if (event === 'SIGNED_IN' && session) {
-        toast({
-          title: "Welcome!",
-          description: "You've successfully signed in with Google.",
-        });
-        navigate('/dashboard');
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        navigate('/dashboard');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`
-          }
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Account created!",
-          description: "Please check your email to verify your account.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully signed in.",
-        });
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    const userToken = localStorage.getItem('googleAuthToken');
+    const userInfo = localStorage.getItem('userInfo');
+    
+    if (userToken && userInfo) {
+      navigate('/dashboard');
     }
-  };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      // Determine the correct redirect URL based on environment
-      const isDevelopment = import.meta.env.DEV;
-      const localRedirectUrl = import.meta.env.VITE_LOCAL_REDIRECT_URL || 'http://localhost:8080';
-      const redirectUrl = isDevelopment 
-        ? `${localRedirectUrl}/auth/callback`
-        : `${window.location.origin}/auth/callback`;
-
-      console.log('Environment:', { isDevelopment, redirectUrl });
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // The redirect will happen automatically, but we can show a message
-      toast({
-        title: "Redirecting to Google...",
-        description: "You'll be redirected back after authentication.",
-      });
+    // Load Google OAuth script
+    const loadGoogleScript = () => {
+      if (window.google) return;
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      toast({
-        title: "Google Sign In Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      setLoading(false);
-    }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    };
+
+    loadGoogleScript();
+  }, [navigate]);
+
+  const handleGoogleSignIn = () => {
+    setLoading(true);
+    
+    const isDevelopment = window.location.hostname === 'localhost';
+    const localUrl = import.meta.env.VITE_LOCAL_REDIRECT_URL || 'http://localhost:8080';
+    const productionUrl = import.meta.env.VITE_PRODUCTION_URL || 'https://course-career-sync.vercel.app';
+    
+    const redirectUri = isDevelopment 
+      ? `${localUrl}/auth/callback`
+      : `${productionUrl}/auth/callback`;
+
+    // Create Google OAuth URL
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID);
+    googleAuthUrl.searchParams.append('redirect_uri', redirectUri);
+    googleAuthUrl.searchParams.append('response_type', 'code');
+    googleAuthUrl.searchParams.append('scope', 'email profile');
+    googleAuthUrl.searchParams.append('access_type', 'offline');
+    googleAuthUrl.searchParams.append('prompt', 'consent');
+
+    console.log('Redirecting to Google OAuth:', googleAuthUrl.toString());
+
+    toast({
+      title: "Redirecting to Google...",
+      description: "You'll be redirected back after authentication.",
+    });
+
+    // Redirect to Google OAuth
+    window.location.href = googleAuthUrl.toString();
   };
 
   return (
@@ -146,55 +91,17 @@ const Auth = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>{isSignUp ? "Create Account" : "Welcome Back"}</CardTitle>
+            <CardTitle>Welcome to SkillSync</CardTitle>
             <CardDescription>
-              {isSignUp 
-                ? "Start mapping your coursework to career skills" 
-                : "Sign in to continue to your dashboard"}
+              Sign in with Google to start mapping your coursework to career skills
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
-              </Button>
-            </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-
             <Button 
               variant="outline" 
               className="w-full" 
               onClick={handleGoogleSignIn}
+              disabled={loading}
               type="button"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -215,19 +122,11 @@ const Auth = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Google
+              {loading ? "Redirecting..." : "Continue with Google"}
             </Button>
 
-            <div className="text-center text-sm">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary hover:underline"
-              >
-                {isSignUp 
-                  ? "Already have an account? Sign in" 
-                  : "Don't have an account? Sign up"}
-              </button>
+            <div className="text-center text-sm text-muted-foreground">
+              By signing in, you agree to our Terms of Service and Privacy Policy
             </div>
           </CardContent>
         </Card>
