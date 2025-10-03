@@ -1,6 +1,25 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const AuthCallback = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       <div className="text-center">
@@ -11,7 +30,7 @@ const AuthCallback = () => {
         </p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AuthCallback
+export default AuthCallback;
