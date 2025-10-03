@@ -26,13 +26,20 @@ const Auth = () => {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      console.log('Auth state change:', event, session?.user?.email);
+      if (event === 'SIGNED_IN' && session) {
+        toast({
+          title: "Welcome!",
+          description: "You've successfully signed in with Google.",
+        });
+        navigate('/dashboard');
+      } else if (event === 'TOKEN_REFRESHED' && session) {
         navigate('/dashboard');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,10 +74,11 @@ const Auth = () => {
           description: "You've successfully signed in.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -81,10 +89,19 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Determine the correct redirect URL based on environment
+      const isDevelopment = import.meta.env.DEV;
+      const localRedirectUrl = import.meta.env.VITE_LOCAL_REDIRECT_URL || 'http://localhost:8080';
+      const redirectUrl = isDevelopment 
+        ? `${localRedirectUrl}/auth/callback`
+        : `${window.location.origin}/auth/callback`;
+
+      console.log('Environment:', { isDevelopment, redirectUrl });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -92,14 +109,23 @@ const Auth = () => {
         }
       });
 
-      if (error) throw error;
-    } catch (error: any) {
+      if (error) {
+        throw error;
+      }
+
+      // The redirect will happen automatically, but we can show a message
+      toast({
+        title: "Redirecting to Google...",
+        description: "You'll be redirected back after authentication.",
+      });
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Google Sign In Error",
-        description: "Please ensure Google OAuth is configured in your backend settings.",
+        description: errorMessage,
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
