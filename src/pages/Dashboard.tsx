@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, Sparkles, LogOut, User } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Select,
   SelectContent,
@@ -103,7 +104,8 @@ const Dashboard = () => {
             <Sparkles className="w-6 h-6 text-primary" />
             <span className="text-xl font-bold">SkillSync</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={() => navigate('/profile')}>
               <User className="w-4 h-4 mr-2" />
               Profile

@@ -79,21 +79,28 @@ const Auth = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
       if (error) throw error;
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Google Sign In Error",
+        description: "Please ensure Google OAuth is configured in your backend settings.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
