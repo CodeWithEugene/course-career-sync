@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Sparkles, LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { parseJwt } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -35,11 +36,23 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is authenticated
     const userToken = localStorage.getItem('googleAuthToken');
     const userInfoStr = localStorage.getItem('userInfo');
     
     if (!userToken || !userInfoStr) {
+      navigate('/auth');
+      return;
+    }
+
+    const decodedToken: { exp: number } = parseJwt(userToken);
+    if (decodedToken && decodedToken.exp * 1000 < Date.now()) {
+      localStorage.removeItem('googleAuthToken');
+      localStorage.removeItem('userInfo');
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive",
+      });
       navigate('/auth');
       return;
     }
@@ -51,7 +64,7 @@ const Dashboard = () => {
       console.error('Error parsing user info:', error);
       navigate('/auth');
     }
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleSignOut = () => {
     localStorage.removeItem('googleAuthToken');

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, LogOut, ArrowLeft, Share2, Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { parseJwt } from "@/lib/utils";
 
 // Mock data for demonstration
 const mockSkills = [
@@ -48,11 +49,23 @@ const Profile = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is authenticated
     const userToken = localStorage.getItem('googleAuthToken');
     const userInfoStr = localStorage.getItem('userInfo');
     
     if (!userToken || !userInfoStr) {
+      navigate('/auth');
+      return;
+    }
+
+    const decodedToken: { exp: number } = parseJwt(userToken);
+    if (decodedToken && decodedToken.exp * 1000 < Date.now()) {
+      localStorage.removeItem('googleAuthToken');
+      localStorage.removeItem('userInfo');
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive",
+      });
       navigate('/auth');
       return;
     }
@@ -64,7 +77,7 @@ const Profile = () => {
       console.error('Error parsing user info:', error);
       navigate('/auth');
     }
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleSignOut = () => {
     localStorage.removeItem('googleAuthToken');

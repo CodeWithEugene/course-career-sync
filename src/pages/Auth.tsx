@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
+import { parseJwt } from "@/lib/utils";
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "117053563877-pdor1rav4e9kgrea7p21e31h999q7tfj.apps.googleusercontent.com";
@@ -108,13 +109,6 @@ const Auth = () => {
     };
 
   }, [navigate, toast]);
-
-  const parseJwt = (token: string) => {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-    return JSON.parse(jsonPayload);
-  };
 
   const handleGoogleSignIn = () => {
     if (!isGoogleReady || !window.google || !window.google.accounts) {
