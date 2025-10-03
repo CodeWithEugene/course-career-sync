@@ -12,6 +12,7 @@ const Auth = () => {
 
   const handleGoogleSignIn = async (response: any) => {
     setLoading(true);
+    console.log("Google Sign-In response:", response);
     const { credential } = response;
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
