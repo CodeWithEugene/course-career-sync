@@ -1,126 +1,21 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { supabase } from '@/integrations/supabase/client'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
-import { parseJwt } from "@/lib/utils";
-
-// Google OAuth configuration
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "117053563877-pdor1rav4e9kgrea7p21e31h999q7tfj.apps.googleusercontent.com";
-
-// Types for Google Identity Services
-interface CredentialResponse {
-  credential: string;
-}
-
-// Extend window type for Google API
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (response: CredentialResponse) => void; }) => void;
-          prompt: () => void;
-        };
-      };
-    };
-    handleCredentialResponse?: (response: CredentialResponse) => void;
-  }
-}
+import { motion } from "framer-motion";
+import { useState } from 'react';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
-  const [isGoogleReady, setIsGoogleReady] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
 
-  useEffect(() => {
-    // Check if user is already authenticated
-    if (localStorage.getItem('googleAuthToken')) {
-      navigate('/dashboard');
-      return;
-    }
-
-    // Define global callback function
-    window.handleCredentialResponse = (response: CredentialResponse) => {
-      setLoading(true);
-      try {
-        const userInfo = parseJwt(response.credential);
-        localStorage.setItem('googleAuthToken', response.credential);
-        localStorage.setItem('userInfo', JSON.stringify({
-          id: userInfo.sub,
-          name: userInfo.name,
-          email: userInfo.email,
-          picture: userInfo.picture,
-        }));
-        
-        toast({
-          title: "Welcome!",
-          description: `Successfully signed in as ${userInfo.name}`,
-        });
-        
-        navigate('/dashboard');
-      } catch (error) {
-        console.error('Error handling credential response:', error);
-        toast({
-          title: "Authentication Error",
-          description: "Failed to process Google authentication.",
-          variant: "destructive",
-        });
-        setLoading(false);
-      }
-    };
-
-    const initializeGoogleSignIn = () => {
-      if (window.google && window.google.accounts) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: window.handleCredentialResponse,
-        });
-        setIsGoogleReady(true);
-      } else {
-         console.error("Google Identity Services library not loaded.");
-         toast({
-            title: "Initialization Error",
-            description: "Could not load Google Sign-In. Please refresh the page.",
-            variant: "destructive",
-         });
-      }
-    };
-
-    // Load Google Identity Services script
-    if (!document.getElementById('google-gsi-client')) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-client';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGoogleSignIn;
-      document.head.appendChild(script);
-    } else {
-      initializeGoogleSignIn();
-    }
-
-    // Cleanup the global function when the component unmounts
-    return () => {
-      delete window.handleCredentialResponse;
-    };
-
-  }, [navigate, toast]);
-
-  const handleGoogleSignIn = () => {
-    if (!isGoogleReady || !window.google || !window.google.accounts) {
-      toast({
-        title: "Google Sign-In Not Ready",
-        description: "Please wait a moment for Google services to load and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleGoogleSignIn = async () => {
     setLoading(true);
-    window.google.accounts.id.prompt();
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
   };
 
   return (
@@ -143,17 +38,15 @@ const Auth = () => {
             <CardDescription>Choose your preferred sign-in method</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <Button 
-              variant="outline" 
-              className="w-full" 
+            <Button
+              variant="outline"
+              className="w-full"
               onClick={handleGoogleSignIn}
-              disabled={loading || !isGoogleReady}
+              disabled={loading}
             >
               <div className="flex items-center justify-center">
                 {loading ? (
                   "Redirecting..."
-                ) : !isGoogleReady ? (
-                  "Loading..."
                 ) : (
                   <>
                     <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
