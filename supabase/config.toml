@@ -1,1 +1,4 @@
 project_id = "zlfyuxnfjsgawemfrkwq"
+
+[functions.analyze-coursework]
+verify_jwt = true
